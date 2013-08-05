@@ -1,5 +1,0 @@
-'Hello World'
-'This is some embedded text for my assembler'
-
-0042 test: mov b, a
-2000 jmp test
