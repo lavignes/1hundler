@@ -294,6 +294,8 @@ for line_no, line in enumerate(iter(RAW_TABLE, ), start=1):
   TRANSLATION_TABLE[mne] = args
 
 LEXEMES = [
+  ('pragma',   'DB|DW',                    lambda tok: tok),
+  ('string',   r"'[\x00-\xFF]*'",          lambda tok: tok[1:-1]),
   ('mnemonic',
    '|'.join([mne for mne in sorted(TRANSLATION_TABLE.keys(), reverse=True)]),
                                            lambda tok: tok.upper()),
@@ -360,7 +362,37 @@ def process(ROM, lexer, assemble=False):
           ROMloc = tok
           tt, tok = nextof(lexeme)
 
-        if tt == 'label':
+        if tt == 'pragma':
+          if tok == 'DB':
+            while True:
+              tt, tok = nextof(lexeme)
+              if tt == None:
+                break
+              if not tt == 'byte':
+                raise ParseError('-- DB malformed!')
+              if assemble:
+                rom_write(ROM, ROMloc, data=tok)
+              ROMloc += 1
+          if tok == 'DW':
+            lo, hi = 0x00, 0x00
+            while True:
+              tt, tok = nextof(lexeme)
+              if tt == None:
+                break
+              if not tt == 'address':
+                raise ParseError('-- DW malformed!')
+              if assemble:
+                hi = tok >> 8
+                lo = tok & 0x00FF
+                rom_write(ROM, ROMloc, data=hi)
+                rom_write(ROM, ROMloc+1, data=lo)
+              ROMloc += 2
+        elif tt == 'string':
+          for c in tok.encode('ascii'):
+            if assemble:
+              rom_write(ROM, ROMloc, data=c)
+            ROMloc += 1
+        elif tt == 'label':
           if assemble and tok in LABEL_TABLE and not LABEL_TABLE[tok] == ROMloc:
             raise SemanticError('-- Duplicate label! %.4X' % LABEL_TABLE[tok])
           LABEL_TABLE[tok] = ROMloc
@@ -395,9 +427,6 @@ def process(ROM, lexer, assemble=False):
                   if not tok in LABEL_TABLE:
                     raise SemanticError('-- Undefined label: \'%s\'' % tok)
                   tok = LABEL_TABLE[tok]
-                  error(hex(tok))
-                  error(len(args))
-                  error(sz)
                 hi = tok >> 8
                 lo = tok & 0x00FF
                 trans = '%s &' % trans
