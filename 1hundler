@@ -384,8 +384,8 @@ def process(ROM, lexer, assemble=False):
               if assemble:
                 hi = tok >> 8
                 lo = tok & 0x00FF
-                rom_write(ROM, ROMloc, data=hi)
-                rom_write(ROM, ROMloc+1, data=lo)
+                rom_write(ROM, ROMloc, data=lo)
+                rom_write(ROM, ROMloc+1, data=hi)
               ROMloc += 2
         elif tt == 'string':
           for c in tok.encode('ascii'):
@@ -455,9 +455,9 @@ def process(ROM, lexer, assemble=False):
 
             rom_write(ROM, ROMloc, data=MNEMONIC_TABLE[trans].opcode)
             if sz > 1:
-              rom_write(ROM, ROMloc+1, data=hi)
+              rom_write(ROM, ROMloc+1, data=lo)
             if sz > 2:
-              rom_write(ROM, ROMloc+2, data=lo)
+              rom_write(ROM, ROMloc+2, data=hi)
 
           # Update the ROM pointer
           ROMloc += sz
