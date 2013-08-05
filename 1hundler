@@ -1,0 +1,460 @@
+#!/usr/bin/env python3.2
+RAW_TABLE = '''\
+OP|Mnemonic |ZSPCA|tm|Description               |Effect       |
+CE|ACI #    |*****| 7|Add Byte with Carry       |A=A+#+CY     |
+8F|ADC A    |*****| 4|Add A with Carry          |A=A+A+CY     |
+88|ADC B    |*****| 4|Add B with Carry          |A=A+B+CY     |
+89|ADC C    |*****| 4|Add C with Carry          |A=A+C+CY     |
+8A|ADC D    |*****| 4|Add D with Carry          |A=A+D+CY     |
+8B|ADC E    |*****| 4|Add E with Carry          |A=A+E+CY     |
+8C|ADC H    |*****| 4|Add H with Carry          |A=A+H+CY     |
+8C|ADC L    |*****| 4|Add L with Carry          |A=A+L+CY     |
+8E|ADC M    |*****| 7|Add with Carry to Memory  |A=A+[HL]+CY  |
+87|ADD A    |*****| 4|Add A                     |A=A+A        |
+80|ADD B    |*****| 4|Add B                     |A=A+B        |
+81|ADD C    |*****| 4|Add C                     |A=A+C        |
+82|ADD D    |*****| 4|Add D                     |A=A+D        |
+83|ADD E    |*****| 4|Add E                     |A=A+E        |
+84|ADD H    |*****| 4|Add H                     |A=A+H        |
+85|ADD L    |*****| 4|Add L                     |A=A+L        |
+86|ADD M    |*****| 7|Add from Memory           |A=A+[HL]     |
+C6|ADI #    |*****| 7|Add Byte                  |A=A+#        |
+A7|ANA A    |****0| 4|AND Accumulator with A    |A=A&A        |
+A0|ANA B    |****0| 4|AND Accumulator with B    |A=A&B        |
+A1|ANA C    |****0| 4|AND Accumulator with C    |A=A&C        |
+A2|ANA D    |****0| 4|AND Accumulator with D    |A=A&D        |
+A3|ANA E    |****0| 4|AND Accumulator with E    |A=A&E        |
+A4|ANA H    |****0| 4|AND Accumulator with H    |A=A&H        |
+A5|ANA L    |****0| 4|AND Accumulator with L    |A=A&L        |
+A6|ANA M    |****0| 7|AND Accumulator and Memory|A=A&[HL]     |
+E6|ANI #    |**0*0| 7|AND Byte                  |A=A&#        |
+CD|CALL &   |-----|18|Call unconditional        |-[SP]=PC,PC=&|
+DC|CC &     |-----| 9|Call on Carry             |CALL if CY==1|
+FC|CM &     |-----| 9|Call on Minus             |CALL if S==1 |
+2F|CMA      |-----| 4|Complement Accumulator    |A=~A         |
+3F|CMC      |----*| 4|Complement Carry          |CY=~CY       |
+BF|CMP A    |*****| 4|Compare A with A          |A-A          |
+B8|CMP B    |*****| 4|Compare A with B          |A-B          |
+B9|CMP C    |*****| 4|Compare A with C          |A-C          |
+BA|CMP D    |*****| 4|Compare A with D          |A-D          |
+BB|CMP E    |*****| 4|Compare A with E          |A-E          |
+BC|CMP H    |*****| 4|Compare A with H          |A-H          |
+BD|CMP L    |*****| 4|Compare A with L          |A-L          |
+BF|CMP M    |*****| 7|Compare with Memory       |A-[HL]       |
+D4|CNC &    |-----| 9|Call on No Carry          |CALL if CY==0|
+C4|CNZ &    |-----| 9|Call on No Zero           |CALL if Z==0 |
+F4|CP &     |-----| 9|Call on Plus              |CALL if S==0 |
+EC|CPE &    |-----| 9|Call on Parity Even       |CALL if P==1 |
+FE|CPI #    |*****| 7|Compare A with Byte       |A-#          |
+E4|CPO &    |-----| 9|Call on Parity Odd        |CALL if P==0 |
+CC|CZ &     |-----| 9|Call on Zero              |CALL if Z=1  |
+27|DAA      |*****| 4|Decimal Adjust Accumulator|A=BCD format |
+09|DAD B    |----*|10|Double Add BC to HL       |HL=HL+BC     |
+19|DAD D    |----*|10|Double Add DE to HL       |HL=HL+DE     |
+29|DAD H    |----*|10|Double Add HL to HL       |HL=HL+HL     |
+39|DAD SP   |----*|10|Double Add SP to HL       |HL=HL+SP     |
+3D|DCR A    |****-| 4|Decrement A               |A=A-1        |
+05|DCR B    |****-| 4|Decrement B               |B=B-1        |
+0D|DCR C    |****-| 4|Decrement C               |C=C-1        |
+15|DCR D    |****-| 4|Decrement D               |D=D-1        |
+1D|DCR E    |****-| 4|Decrement E               |E=E-1        |
+25|DCR H    |****-| 4|Decrement H               |H=H-1        |
+2D|DCR L    |****-| 4|Decrement L               |L=L-1        |
+3D|DCR M    |****-|10|Decrement Memory          |[HL]=[HL]-1  |
+0B|DCX B    |-----| 6|Decrement BC              |BC=BC-1      |
+1B|DCX D    |-----| 6|Decrement DE              |DE=DE-1      |
+2B|DCX H    |-----| 6|Decrement HL              |HL=HL-1      |
+3B|DCX SP   |-----| 6|Decrement Stack Pointer   |SP=SP-1      |
+F3|DI       |-----| 4|Disable Interrupts        |             |
+FB|EI       |-----| 4|Enable Interrupts         |             |
+76|HLT      |-----| 5|Halt                      |             |
+DB|IN #     |-----|10|Input from port (00-FF)   |A=[#]        |
+3C|INR A    |****-| 4|Increment A               |A=A+1        |
+04|INR B    |****-| 4|Increment B               |B=B+1        |
+0C|INR C    |****-| 4|Increment C               |C=C+1        |
+14|INR D    |****-| 4|Increment D               |D=D+1        |
+1C|INR E    |****-| 4|Increment E               |E=E+1        |
+24|INR H    |****-| 4|Increment H               |H=H+1        |
+2C|INR L    |****-| 4|Increment L               |L=L+1        |
+34|INR M    |****-|10|Increment Memory          |[HL]=[HL]+1  |
+03|INX B    |-----| 6|Increment BC              |BC=BC+1      |
+13|INX D    |-----| 6|Increment DE              |DE=DE+1      |
+23|INX H    |-----| 6|Increment HL              |HL=HL+1      |
+33|INX SP   |-----| 6|Increment Stack Pointer   |SP=SP+1      |
+C3|JMP &    |-----| 7|Jump unconditional        |PC=&         |
+DA|JC &     |-----| 7|Jump on Carry             |PC=& if CY=1 |
+FA|JM &     |-----| 7|Jump on Minus             |PC=& if S=1  |
+D2|JNC &    |-----| 7|Jump on No Carry          |PC=& if CY=0 |
+C2|JNZ &    |-----| 7|Jump on No Zero           |PC=& if Z=0  |
+F2|JP &     |-----| 7|Jump on Plus              |PC=& if S=0  |
+EA|JPE &    |-----| 7|Jump on Parity Even       |PC=& if P=1  |
+E2|JPO &    |-----| 7|Jump on Parity Odd        |PC=& if P=0  |
+CA|JZ &     |-----| 7|Jump on Zero              |PC=& if Z=1  |
+3A|LDA &    |-----|13|Load Accumulator direct   |A=[&]        |
+0A|LDAX B   |-----| 7|Load Accumulator indirect |A=[BC]       |
+1A|LDAX D   |-----| 7|Load Accumulator indirect |A=[DE]       |
+2A|LHLD &   |-----|16|Load HL Direct            |HL=[&]       |
+01|LXI B,## |-----|10|Load Word BC              |BC=##        |
+11|LXI D,## |-----|10|Load Word DE              |DE=##        |
+21|LXI H,## |-----|10|Load Word HL              |HL=##        |
+31|LXI SP,##|-----|10|Load Word Stack Pointer   |SP=##        |
+7F|MOV A,A  |-----| 4|Move A to A               |A=A          |
+78|MOV A,B  |-----| 4|Move B to A               |A=B          |
+79|MOV A,C  |-----| 4|Move C to A               |A=C          |
+7A|MOV A,D  |-----| 4|Move D to A               |A=D          |
+7B|MOV A,E  |-----| 4|Move E to A               |A=E          |
+7C|MOV A,H  |-----| 4|Move H to A               |A=H          |
+7D|MOV A,L  |-----| 4|Move L to A               |A=L          |
+7E|MOV A,M  |-----|10|Move Memory to A          |A=[HL]       |
+47|MOV B,A  |-----| 4|Move A to B               |B=A          |
+40|MOV B,B  |-----| 4|Move B to B               |B=B          |
+41|MOV B,C  |-----| 4|Move C to B               |B=C          |
+42|MOV B,D  |-----| 4|Move D to B               |B=D          |
+43|MOV B,E  |-----| 4|Move E to B               |B=E          |
+44|MOV B,H  |-----| 4|Move H to B               |B=H          |
+45|MOV B,L  |-----| 4|Move L to B               |B=L          |
+46|MOV B,M  |-----|10|Move Memory to B          |B=[HL]       |
+4F|MOV C,A  |-----| 4|Move A to C               |C=A          |
+48|MOV C,B  |-----| 4|Move B to C               |C=B          |
+49|MOV C,C  |-----| 4|Move C to C               |C=C          |
+4A|MOV C,D  |-----| 4|Move D to C               |C=D          |
+4B|MOV C,E  |-----| 4|Move E to C               |C=E          |
+4C|MOV C,H  |-----| 4|Move H to C               |C=H          |
+4D|MOV C,L  |-----| 4|Move L to C               |C=L          |
+4E|MOV C,M  |-----|10|Move Memory to C          |C=[HL]       |
+57|MOV D,A  |-----| 4|Move A to D               |D=A          |
+50|MOV D,B  |-----| 4|Move B to D               |D=B          |
+51|MOV D,C  |-----| 4|Move C to D               |D=C          |
+52|MOV D,D  |-----| 4|Move D to D               |D=D          |
+53|MOV D,E  |-----| 4|Move E to D               |D=E          |
+54|MOV D,H  |-----| 4|Move H to D               |D=H          |
+55|MOV D,L  |-----| 4|Move L to D               |D=L          |
+56|MOV D,M  |-----|10|Move Memory to D          |D=[HL]       |
+5F|MOV E,A  |-----| 4|Move A to E               |E=A          |
+58|MOV E,B  |-----| 4|Move B to E               |E=B          |
+59|MOV E,C  |-----| 4|Move C to E               |E=C          |
+5A|MOV E,D  |-----| 4|Move D to E               |E=D          |
+5B|MOV E,E  |-----| 4|Move E to E               |E=E          |
+5C|MOV E,H  |-----| 4|Move H to E               |E=H          |
+5D|MOV E,L  |-----| 4|Move L to E               |E=L          |
+5E|MOV E,M  |-----|10|Move Memory to E          |E=[HL]       |
+67|MOV H,A  |-----| 4|Move A to H               |H=A          |
+60|MOV H,B  |-----| 4|Move B to H               |H=B          |
+61|MOV H,C  |-----| 4|Move C to H               |H=C          |
+62|MOV H,D  |-----| 4|Move D to H               |H=D          |
+63|MOV H,E  |-----| 4|Move E to H               |H=E          |
+64|MOV H,H  |-----| 4|Move H to H               |H=H          |
+65|MOV H,L  |-----| 4|Move L to H               |H=L          |
+66|MOV H,M  |-----|10|Move Memory to H          |H=[HL]       |
+6F|MOV L,A  |-----| 4|Move A to L               |L=A          |
+68|MOV L,B  |-----| 4|Move B to L               |L=B          |
+69|MOV L,C  |-----| 4|Move C to L               |L=C          |
+6A|MOV L,D  |-----| 4|Move D to L               |L=D          |
+6B|MOV L,L  |-----| 4|Move E to L               |L=E          |
+6C|MOV L,H  |-----| 4|Move H to L               |L=H          |
+6D|MOV L,L  |-----| 4|Move L to L               |L=L          |
+6E|MOV L,M  |-----|10|Move Memory to L          |L=[HL]       |
+77|MOV M,A  |-----|10|Move A to Memory          |[HL]=A       |
+70|MOV M,B  |-----|10|Move B to Memory          |[HL]=B       |
+71|MOV M,C  |-----|10|Move C to Memory          |[HL]=C       |
+72|MOV M,D  |-----|10|Move D to Memory          |[HL]=D       |
+73|MOV M,E  |-----|10|Move E to Memory          |[HL]=E       |
+74|MOV M,H  |-----|10|Move H to Memory          |[HL]=H       |
+75|MOV M,L  |-----|10|Move L to Memory          |[HL]=L       |
+3E|MVI A,#  |-----| 7|Move Byte to A            |A=#          |
+06|MVI B,#  |-----| 7|Move Byte to B            |B=#          |
+0E|MVI C,#  |-----| 7|Move Byte to C            |C=#          |
+16|MVI D,#  |-----| 7|Move Byte to D            |D=#          |
+1E|MVI E,#  |-----| 7|Move Byte to E            |E=#          |
+26|MVI H,#  |-----| 7|Move Byte to H            |H=#          |
+26|MVI L,#  |-----| 7|Move Byte to L            |L=#          |
+36|MVI M,#  |-----|10|Move Byte to M            |[HL]=#       |
+00|NOP      |-----| 4|No Operation              |             |
+B7|ORA A    |**0*0| 4|Inclusive OR with A       |A=A or A     |
+B0|ORA B    |**0*0| 4|Inclusive OR with B       |A=A or B     |
+B1|ORA C    |**0*0| 4|Inclusive OR with C       |A=A or C     |
+B2|ORA D    |**0*0| 4|Inclusive OR with D       |A=A or D     |
+B3|ORA E    |**0*0| 4|Inclusive OR with E       |A=A or E     |
+B4|ORA H    |**0*0| 4|Inclusive OR with H       |A=A or H     |
+B5|ORA L    |**0*0| 4|Inclusive OR with L       |A=A or L     |
+B6|ORA M    |**0*0| 7|Inclusive OR with Memory  |A=A or [HL]  |
+F6|ORI #    |**0*0| 7|Inclusive OR Byte         |A=A or #     |
+D3|OUT #    |-----|10|Output to port (00-FF)    |[#]=A        |
+E9|PCHL     |-----| 6|Jump HL indirect          |PC=[HL]      |
+C1|POP B    |-----|10|Pop BC                    |BC=[SP]+     |
+D1|POP D    |-----|10|Pop DE                    |DE=[SP]+     |
+E1|POP H    |-----|10|Pop HL                    |HL=[SP]+     |
+F1|POP PSW  |-----|10|Pop Processor Status Word |{PSW,A}=[SP]+|
+C5|PUSH B   |-----|12|Push BC                   |-[SP]=BC     |
+D5|PUSH D   |-----|12|Push DE                   |-[SP]=DE     |
+E5|PUSH H   |-----|12|Push HL                   |-[SP]=HL     |
+F5|PUSH PSW |-----|12|Push Processor Status Word|-[SP]={PSW,A}|
+17|RAL      |----*| 4|Rotate Accumulator Left   |A=A<<1       |
+1F|RAR      |----*| 4|Rotate Accumulator Right  |A=A>>1       |
+C9|RET      |-----|10|Return                    |PC=[SP]+     |
+D8|RC       |-----| 6|Return on Carry           |Retrn if CY=1|
+20|RIM      |-----| 4|Read Interrupt Mask       |A=mask       |
+F8|RM       |-----| 6|Return on Minus           |Retrn if S=1 |
+D0|RNC      |-----| 6|Return on No Carry        |Retrn if CY=0|
+C0|RNZ      |-----| 6|Return on No Zero         |Retrn if Z=0 |
+F0|RP       |-----| 6|Return on Plus            |Retrn if S=0 |
+E8|RPE      |-----| 6|Return on Parity Even     |Retrn if P=1 |
+E0|RPO      |-----| 6|Return on Parity Odd      |Retrn if P=0 |
+C8|RZ       |-----| 6|Return on Zero            |Retrn if Z=1 |
+07|RLC      |----*| 4|Rotate Left Circular      |A=rotl(A)    |
+0F|RRC      |----*| 4|Rotate Right Circular     |A=rotr(A)    |
+C7|RST0     |-----|12|Interrupt 0    (z=0000)   |-[SP]=PC,PC=z|
+CF|RST1     |-----|12|Interrupt 1    (z=0008)   |-[SP]=PC,PC=z|
+D7|RST2     |-----|12|Interrupt 2    (z=0010)   |-[SP]=PC,PC=z|
+DF|RST3     |-----|12|Interrupt 3    (z=0018)   |-[SP]=PC,PC=z|
+E7|RST4     |-----|12|Interrupt 4    (z=0020)   |-[SP]=PC,PC=z|
+EF|RST5     |-----|12|Interrupt 5    (z=0028)   |-[SP]=PC,PC=z|
+F7|RST6     |-----|12|Interrupt 6    (z=0030)   |-[SP]=PC,PC=z|
+FF|RST7     |-----|12|Interrupt 7    (z=0038)   |-[SP]=PC,PC=z|
+9F|SBB A    |*****| 4|Subtract A with Borrow    |A=A-A-CY     |
+98|SBB B    |*****| 4|Subtract B with Borrow    |A=A-B-CY     |
+99|SBB C    |*****| 4|Subtract C with Borrow    |A=A-C-CY     |
+9A|SBB D    |*****| 4|Subtract D with Borrow    |A=A-D-CY     |
+9B|SBB E    |*****| 4|Subtract E with Borrow    |A=A-E-CY     |
+9C|SBB H    |*****| 4|Subtract H with Borrow    |A=A-H-CY     |
+9D|SBB L    |*****| 4|Subtract L with Borrow    |A=A-L-CY     |
+9E|SBB M    |*****| 7|Subtract Mem with Borrow  |A=A-[HL]-CY  |
+DE|SBI #    |*****| 7|Subtract Byte with Borrow |A=A-#-CY     |
+22|SHLD &   |-----|16|Store HL Direct           |[&]=HL       |
+30|SIM      |-----| 4|Set Interrupt Mask        |mask=A       |
+F9|SPHL     |-----| 6|Move HL to SP             |SP=HL        |
+32|STA &    |-----|13|Store Accumulator         |[&]=A        |
+02|STAX B   |-----| 7|Indirect Store Accumulator|[BC]=A       |
+12|STAX D   |-----| 7|Indirect Store Accumulator|[DE]=A       |
+37|STC      |----1| 4|Set Carry                 |CY=1         |
+97|SUB A    |*****| 4|Subtract A                |A=A-A        |
+90|SUB B    |*****| 4|Subtract B                |A=A-B        |
+91|SUB C    |*****| 4|Subtract C                |A=A-C        |
+92|SUB D    |*****| 4|Subtract D                |A=A-D        |
+93|SUB E    |*****| 4|Subtract E                |A=A-E        |
+94|SUB H    |*****| 4|Subtract H                |A=A-H        |
+95|SUB L    |*****| 4|Subtract L                |A=A-L        |
+96|SUB M    |*****| 7|Subtract Memory           |A=A-[HL]     |
+D6|SUI #    |*****| 7|Subtract Immediate        |A=A-#        |
+EB|XCHG     |-----| 4|Exchange HL with DE       |HL<=>DE      |
+AF|XRA A    |**0*0| 4|A XOR A                   |A=A^A        |
+A8|XRA B    |**0*0| 4|A XOR B                   |A=A^B        |
+A9|XRA C    |**0*0| 4|A XOR C                   |A=A^C        |
+AA|XRA D    |**0*0| 4|A XOR D                   |A=A^D        |
+AB|XRA E    |**0*0| 4|A XOR E                   |A=A^E        |
+AC|XRA H    |**0*0| 4|A XOR H                   |A=A^H        |
+AD|XRA L    |**0*0| 4|A XOR L                   |A=A^L        |
+AE|XRA M    |**0*0| 7|A XOR Memory              |A=A^[HL]     |
+EE|XRI #    |**0*0| 7|A XOR Byte                |A=A^#        |
+E3|XTHL     |-----|16|Exchange Stack Top with HL|[SP]<=>HL    |'''.splitlines()
+
+import sys, os, re
+from functools import partial
+from collections import namedtuple
+
+MNEMONIC_TABLE = dict()
+TRANSLATION_TABLE = dict()
+Mnemonic = namedtuple('Mnemonic', ['opcode', 'args'])
+ROM = bytearray([0x00] * 0x8000)
+input_filename = sys.argv[1] if len(sys.argv) > 1 else None
+REGLIST = ['M','A','B','C','D','E','F','H','L','PSW','SP']
+
+LABEL_TABLE = {
+  # Define some known locations
+  'rst_0':    0x0000,
+  'rst_1':    0x0008,
+  'rst_2':    0x0010,
+  'rst_3':    0x0018,
+  'rst_4':    0x0020,
+  'rst_5':    0x0028,
+  'rst_6':    0x0030,
+  'rst_7':    0x0038,
+  'trap':     0x0024, # the TRAP interrupt
+  'barcode':  0x002C,
+  'rs232':    0x0034,
+  'timer':    0x003C
+}
+
+error = partial(print, file=sys.stderr)
+def nextof(iter):
+  return next(iter, (None, None))
+class ParseError(Exception):
+  pass
+class SemanticError(Exception):
+  pass
+
+for line_no, line in enumerate(iter(RAW_TABLE, ), start=1):
+  line = line.rstrip('|\n')
+  if line_no == 1: # Skip the header line
+    continue
+  op, mne, *args = ' '.join(line.split('|')[:2]).split()
+  args = str(*args).split(',') if args else []
+
+  MNEMONIC_TABLE[line.split('|')[1].rstrip()] = Mnemonic(opcode=int(op, base=16), args=args)
+  TRANSLATION_TABLE[mne] = args
+
+LEXEMES = [
+  ('mnemonic',
+   '|'.join([mne for mne in sorted(TRANSLATION_TABLE.keys(), reverse=True)]),
+                                           lambda tok: tok.upper()),
+  ('address',  '(0x)?[0-9A-F]{4}',         lambda tok: int(tok, base=16)),
+  ('byte',     '(0x)?[0-9A-F]{2}',         lambda tok: int(tok, base=16)),
+  ('register', '[MABCDEFHL]|PSW|SP',       lambda tok: tok.upper()),
+  ('label',    ':?[A-Z_]+[0-9]*[A-Z_]*:?', lambda tok: tok.strip(':')),
+  ('comment',  '[#;].*$',                  lambda tok: tok),
+]
+
+class Lexer(object):  
+  def __init__(self, lexemes):
+    self.lexemes = lexemes
+    parts = []
+    for tt, part, method in lexemes:
+      parts.append('(?P<%s>%s)' % (tt, part))
+    self.regexpString = '|'.join(parts)
+    self.regexp = re.compile(self.regexpString, re.IGNORECASE)
+
+  def parse_line(self, text):
+    for match in self.regexp.finditer(text):
+      for tt, rexp, method in self.lexemes:
+        tok = match.group(tt)
+        if tok is not None:
+          yield (tt, method(tok))
+          break
+
+def rom_write(ROM, loc, data=0x00):
+  if ROM[loc]:
+    raise SemanticError('-- Rewriting ROM at %.4X!' % loc)
+  ROM[loc] = data
+
+def instruction_size(mne):
+  args = TRANSLATION_TABLE[mne]
+  if len(args) == 1:
+    if args[0] == '&':
+      return 3
+    elif args[0] == '#':
+      return 2
+  if len(args) == 2:
+    if args[1] == '##':
+      return 3
+    elif args[1] == '#':
+      return 2
+  return 1
+
+def process(ROM, lexer, assemble=False):
+  ROMloc, line_no, line = 0x0000, 1, ''
+  try:
+    with open(input_filename) if input_filename else sys.stdin as input_file:
+      for line_no, line in enumerate(input_file, start=1):
+        line = line.strip()
+        if line == '':
+          continue
+        lexeme = lexer.parse_line(line)
+
+        # Begin parsing
+        tt, tok = nextof(lexeme)
+
+        if tt == 'comment':
+          continue
+
+        if tt == 'address':
+          ROMloc = tok
+          tt, tok = nextof(lexeme)
+
+        if tt == 'label':
+          if tok in LABEL_TABLE:
+            raise SemanticError('-- Duplicate label! %.4X' % LABEL_TABLE[tok])
+          LABEL_TABLE[tok] = ROMloc
+          tt, tok = nextof(lexeme)
+          if not tt == 'mnemonic':
+            raise ParseError('-- Labels must be followed by a mnemonic!')
+
+        if tt == 'mnemonic':
+          sz = instruction_size(tok)
+          if assemble:
+            hi, lo = 0x00, 0x00
+            rd, rs = '', ''
+            args = TRANSLATION_TABLE[tok]
+            trans = tok
+
+            if len(args) == 1:
+              if args[0] in REGLIST:
+                tt, tok = nextof(lexeme)
+                if not tt == 'register':
+                  raise SemanticError('-- Expected register operand!')
+                trans = '%s %s' % (trans, tok)
+              elif args[0] == '#':
+                tt, hi = nextof(lexeme)
+                if not tt == 'byte':
+                  raise SemanticError('-- Expected byte operand!')
+                trans = '%s #' % trans
+              elif args[0] == '&':
+                tt, tok = nextof(lexeme)
+                if not tt == 'address':
+                  raise SemanticError('-- Expected address operand!')
+                hi = tok >> 8
+                lo = tok & 0x00FF
+                trans = '%s &' % trans
+            if len(args) == 2:
+              if args[0] in REGLIST:
+                tt, rd = nextof(lexeme)
+                if not tt == 'register':
+                  raise SemanticError('-- Expected register operand!')
+                if args[1] in REGLIST:
+                  tt, rs = nextof(lexeme)
+                  if not tt == 'register':
+                    raise SemanticError('-- Expected register operand!')
+                  trans = '%s %s,%s' % (trans, rd, rs)
+                elif args[1] == '#':
+                  tt, hi = nextof(lexeme)
+                  if not tt == 'byte':
+                    raise SemanticError('-- Expected byte operand!')
+                  trans = '%s %s,#' % (trans, rd)
+                elif args[1] == '##':
+                  tt, tok = nextof(lexeme)
+                  if not tt == 'address':
+                    raise SemanticError('-- Expected word operand!')
+                  hi = tok >> 8
+                  lo = tok & 0x00FF
+                  trans = '%s %s,##' % (trans, rd)
+
+            rom_write(ROM, ROMloc, data=MNEMONIC_TABLE[trans].opcode)
+            if sz > 1:
+              rom_write(ROM, ROMloc+1, data=hi)
+            elif sz > 2:
+              rom_write(ROM, ROMloc+2, data=low)
+
+          # Update the ROM pointer
+          ROMloc += sz
+        
+
+  except IOError as e:
+    error('\x1b[31;1m[BAD]\x1b[m IOError error on line %d:' % line_no)
+    error("%6d %.4X '\x1b[93m%s\x1b[m'" % (line_no, ROMloc, line))
+    error(e)
+    exit()
+  except ParseError as e:
+    error('\x1b[31;1m[BAD]\x1b[m Parse error on line %d:' % line_no)
+    error("%6d %.4X '\x1b[93m%s\x1b[m'" % (line_no, ROMloc, line))
+    error(e)
+    exit()
+  except SemanticError as e:
+    error('\x1b[31;1m[BAD]\x1b[m SemanticError error on line %d:' % line_no)
+    error("%6d %.4X '\x1b[93m%s\x1b[m'" % (line_no, ROMloc, line))
+    error(e)
+    exit()
+  except ValueError as e:
+    error(e)
+    pass
+
+  # Clear ROM
+  if assemble == False:
+    ROM = bytearray([0x00] * 0x8000)
+
+lexer = Lexer(LEXEMES)
+process(ROM, lexer)
+process(ROM, lexer, assemble=True)
+
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'wb')
+sys.stdout.write(ROM)
+
+error('\x1b[32;1m[GOOD]\x1b[m Compile done!')
