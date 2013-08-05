@@ -361,7 +361,7 @@ def process(ROM, lexer, assemble=False):
           tt, tok = nextof(lexeme)
 
         if tt == 'label':
-          if tok in LABEL_TABLE:
+          if assemble and tok in LABEL_TABLE and not LABEL_TABLE[tok] == ROMloc:
             raise SemanticError('-- Duplicate label! %.4X' % LABEL_TABLE[tok])
           LABEL_TABLE[tok] = ROMloc
           tt, tok = nextof(lexeme)
@@ -389,8 +389,15 @@ def process(ROM, lexer, assemble=False):
                 trans = '%s #' % trans
               elif args[0] == '&':
                 tt, tok = nextof(lexeme)
-                if not tt == 'address':
-                  raise SemanticError('-- Expected address operand!')
+                if not tt in ['address', 'label']:
+                  raise SemanticError('-- Expected address or label!')
+                if tt == 'label':
+                  if not tok in LABEL_TABLE:
+                    raise SemanticError('-- Undefined label: \'%s\'' % tok)
+                  tok = LABEL_TABLE[tok]
+                  error(hex(tok))
+                  error(len(args))
+                  error(sz)
                 hi = tok >> 8
                 lo = tok & 0x00FF
                 trans = '%s &' % trans
@@ -420,8 +427,8 @@ def process(ROM, lexer, assemble=False):
             rom_write(ROM, ROMloc, data=MNEMONIC_TABLE[trans].opcode)
             if sz > 1:
               rom_write(ROM, ROMloc+1, data=hi)
-            elif sz > 2:
-              rom_write(ROM, ROMloc+2, data=low)
+            if sz > 2:
+              rom_write(ROM, ROMloc+2, data=lo)
 
           # Update the ROM pointer
           ROMloc += sz
